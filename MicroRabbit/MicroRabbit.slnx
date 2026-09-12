@@ -2,9 +2,6 @@
   <Folder Name="/Domain/">
     <Project Path="MicroRabbit.Domain.Core/MicroRabbit.Domain.Core.csproj" />
   </Folder>
-  <Folder Name="/Domain/Bus/" />
-  <Folder Name="/Domain/Commands/" />
-  <Folder Name="/Domain/Events/" />
   <Folder Name="/Infra.Bus/" />
   <Folder Name="/Infra.IoC/" />
   <Folder Name="/Microservices/" />
