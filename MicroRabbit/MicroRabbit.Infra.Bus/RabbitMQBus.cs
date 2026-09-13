@@ -7,121 +7,120 @@ using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 using System.Text;
 
-namespace MicroRabbit.Infra.Bus
+namespace MicroRabbit.Infra.Bus;
+
+public sealed class RabbitMQBus : IEventBus
 {
-    public sealed class RabbitMQBus : IEventBus
+    private readonly IMediator _mediator;
+    private readonly Dictionary<string, List<Type>> _handlers;
+    private readonly List<Type> _eventTypes;
+
+    public RabbitMQBus(IMediator mediator)
     {
-        private readonly IMediator _mediator;
-        private readonly Dictionary<string, List<Type>> _handlers;
-        private readonly List<Type> _eventTypes;
+        _mediator = mediator;
+        _handlers = new Dictionary<string, List<Type>>();
+        _eventTypes = new List<Type>();
+    }
+    public Task SendCommand<T>(T command) where T : Command
+    {
+        return _mediator.Send(command);
+    }
 
-        public RabbitMQBus(IMediator mediator)
+    public void Publish<T>(T @event) where T : Event
+    {
+        var factory = new ConnectionFactory() { HostName = "localhost" };
+        using (var connection = factory.CreateConnection())
+        using (var channel = connection.CreateModel())
         {
-            _mediator = mediator;
-            _handlers = new Dictionary<string, List<Type>>();
-            _eventTypes = new List<Type>();
-        }
-        public Task SendCommand<T>(T command) where T : Command
-        {
-            return _mediator.Send(command);
-        }
-
-        public void Publish<T>(T @event) where T : Event
-        {
-            var factory = new ConnectionFactory() { HostName = "localhost" };
-            using (var connection = factory.CreateConnection())
-            using (var channel = connection.CreateModel())
-            {
-                var eventName = @event.GetType().Name;
-                channel.QueueDeclare(queue: eventName, durable: false, exclusive: false, autoDelete: false, arguments: null);
-                var message = JsonConvert.SerializeObject(@event);
-                var body = Encoding.UTF8.GetBytes(message);
-                channel.BasicPublish(exchange: "", routingKey: eventName, basicProperties: null, body: body);
-            }
-        }
-
-        public void Subscribe<T, TH>()
-            where T : Event
-            where TH : IEventHandler<T>
-        {
-            var eventName = typeof(T).Name;
-            var handlerType = typeof(TH);
-
-            if (!_eventTypes.Contains(typeof(T)))
-            {
-                _eventTypes.Add(typeof(T));
-            }
-
-            if (!_handlers.ContainsKey(eventName))
-            {
-                _handlers.Add(eventName, new List<Type>());
-            }
-
-            if (_handlers[eventName].Any(s => s.GetType() == handlerType))
-            {
-                throw new ArgumentException(
-                    $"Handler Type {handlerType.Name} already is registered for '{eventName}'", nameof(handlerType));
-            }
-
-            _handlers[eventName].Add(handlerType);
-
-            StartBasicConsume<T>();
-        }
-
-        private void StartBasicConsume<T>() where T : Event
-        {
-            var factory = new ConnectionFactory()
-            {
-                HostName = "localhost",
-                DispatchConsumersAsync = true
-            };
-
-            var connection = factory.CreateConnection();
-            var channel = connection.CreateModel();
-
-            var eventName = typeof(T).Name;
-
+            var eventName = @event.GetType().Name;
             channel.QueueDeclare(queue: eventName, durable: false, exclusive: false, autoDelete: false, arguments: null);
+            var message = JsonConvert.SerializeObject(@event);
+            var body = Encoding.UTF8.GetBytes(message);
+            channel.BasicPublish(exchange: "", routingKey: eventName, basicProperties: null, body: body);
+        }
+    }
 
-            var consumer = new AsyncEventingBasicConsumer(channel);
+    public void Subscribe<T, TH>()
+        where T : Event
+        where TH : IEventHandler<T>
+    {
+        var eventName = typeof(T).Name;
+        var handlerType = typeof(TH);
 
-            consumer.Received += Consumer_Resieved;
-
-            channel.BasicConsume(queue: eventName, autoAck: true, consumer: consumer);
-
+        if (!_eventTypes.Contains(typeof(T)))
+        {
+            _eventTypes.Add(typeof(T));
         }
 
-        private async Task Consumer_Resieved(object sender, BasicDeliverEventArgs e)
+        if (!_handlers.ContainsKey(eventName))
         {
-            var eventName = e.RoutingKey;
-            var message = Encoding.UTF8.GetString(e.Body.ToArray());
-            try
-            {
-                await ProcessEvent(eventName, message).ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                // Log the exception or handle it as needed
-                Console.WriteLine($"Error processing event: {ex.Message}");
-            }
+            _handlers.Add(eventName, new List<Type>());
         }
 
-        private async Task ProcessEvent(string eventName, string message)
+        if (_handlers[eventName].Any(s => s.GetType() == handlerType))
         {
-            if (_handlers.ContainsKey(eventName))
+            throw new ArgumentException(
+                $"Handler Type {handlerType.Name} already is registered for '{eventName}'", nameof(handlerType));
+        }
+
+        _handlers[eventName].Add(handlerType);
+
+        StartBasicConsume<T>();
+    }
+
+    private void StartBasicConsume<T>() where T : Event
+    {
+        var factory = new ConnectionFactory()
+        {
+            HostName = "localhost",
+            DispatchConsumersAsync = true
+        };
+
+        var connection = factory.CreateConnection();
+        var channel = connection.CreateModel();
+
+        var eventName = typeof(T).Name;
+
+        channel.QueueDeclare(queue: eventName, durable: false, exclusive: false, autoDelete: false, arguments: null);
+
+        var consumer = new AsyncEventingBasicConsumer(channel);
+
+        consumer.Received += Consumer_Resieved;
+
+        channel.BasicConsume(queue: eventName, autoAck: true, consumer: consumer);
+
+    }
+
+    private async Task Consumer_Resieved(object sender, BasicDeliverEventArgs e)
+    {
+        var eventName = e.RoutingKey;
+        var message = Encoding.UTF8.GetString(e.Body.ToArray());
+        try
+        {
+            await ProcessEvent(eventName, message).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            // Log the exception or handle it as needed
+            Console.WriteLine($"Error processing event: {ex.Message}");
+        }
+    }
+
+    private async Task ProcessEvent(string eventName, string message)
+    {
+        if (_handlers.ContainsKey(eventName))
+        {
+            var subscriptions = _handlers[eventName];
+            foreach (var subscription in subscriptions)
             {
-                var subscriptions = _handlers[eventName];
-                foreach (var subscription in subscriptions)
-                {
-                    var handler = Activator.CreateInstance(subscription);
-                    if (handler == null) continue;
-                    var eventType = _eventTypes.SingleOrDefault(t => t.Name == eventName);
-                    if (eventType == null) continue;
-                    var @event = JsonConvert.DeserializeObject(message, eventType);
-                    if (@event == null) continue;
-                    var concreteType = typeof(IEventHandler<>).MakeGenericType(eventType);
-                    await (Task)concreteType.GetMethod("Handle").Invoke(handler, new object[] { @event });
-                }
+                var handler = Activator.CreateInstance(subscription);
+                if (handler == null) continue;
+                var eventType = _eventTypes.SingleOrDefault(t => t.Name == eventName);
+                if (eventType == null) continue;
+                var @event = JsonConvert.DeserializeObject(message, eventType);
+                if (@event == null) continue;
+                var concreteType = typeof(IEventHandler<>).MakeGenericType(eventType);
+                await (Task)concreteType.GetMethod("Handle").Invoke(handler, new object[] { @event });
             }
         }
     }

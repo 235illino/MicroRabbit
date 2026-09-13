@@ -1,16 +1,13 @@
 ﻿using MicroRabbit.Domain.Core.Bus;
 using Microsoft.Extensions.DependencyInjection;
-using System;
-using System.Collections.Generic;
-using System.Text;
 
-namespace MicroRabbit.Infra.IoC
+namespace MicroRabbit.Infra.IoC;
+
+public class DependencyContainer
 {
-    public class DependencyContainer
+    public static void RegisterServices(IServiceCollection services)
     {
-        public static void RegisterServices(IServiceCollection services)
-        {
-            // Domain Bus
-            services.AddTransient<IEventBus, RabbitMQBus>();
-        }
+        // Domain Bus
+        services.AddTransient<IEventBus, RabbitMQBus>();
     }
+}
