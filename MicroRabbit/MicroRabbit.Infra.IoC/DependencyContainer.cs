@@ -2,7 +2,7 @@
 using MicroRabbit.Infra.Bus;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace MicroRabbit.Infra.IoC
+namespace MicroRabbit.Infra.IoC;
 
 public class DependencyContainer
 {
