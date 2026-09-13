@@ -5,7 +5,9 @@
   <Folder Name="/Infra.Bus/">
     <Project Path="MicroRabbit.Infra.Bus/MicroRabbit.Infra.Bus.csproj" />
   </Folder>
-  <Folder Name="/Infra.IoC/" />
+  <Folder Name="/Infra.IoC/">
+    <Project Path="MicroRabbit.Infra.IoC/MicroRabbit.Infra.IoC.csproj" />
+  </Folder>
   <Folder Name="/Microservices/" />
   <Folder Name="/Presentation/" />
 </Solution>
