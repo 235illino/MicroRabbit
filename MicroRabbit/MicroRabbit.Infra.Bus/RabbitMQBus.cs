@@ -33,7 +33,7 @@ public sealed class RabbitMQBus : IEventBus
         using (var channel = connection.CreateModel())
         {
             var eventName = @event.GetType().Name;
-            channel.QueueDeclare(queue: eventName, durable: false, exclusive: false, autoDelete: false, arguments: null);
+            channel.QueueDeclare(queue: eventName, durable: true, exclusive: false, autoDelete: false, arguments: null);
             var message = JsonConvert.SerializeObject(@event);
             var body = Encoding.UTF8.GetBytes(message);
             channel.BasicPublish(exchange: "", routingKey: eventName, basicProperties: null, body: body);
@@ -81,7 +81,7 @@ public sealed class RabbitMQBus : IEventBus
 
         var eventName = typeof(T).Name;
 
-        channel.QueueDeclare(queue: eventName, durable: false, exclusive: false, autoDelete: false, arguments: null);
+        channel.QueueDeclare(queue: eventName, durable: true, exclusive: false, autoDelete: false, arguments: null);
 
         var consumer = new AsyncEventingBasicConsumer(channel);
 
