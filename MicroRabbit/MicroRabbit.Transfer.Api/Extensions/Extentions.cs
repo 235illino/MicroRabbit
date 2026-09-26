@@ -1,11 +1,11 @@
 ﻿using MicroRabbit.Infra.IoC;
 
-namespace MicroRabbit.Banking.Api.Extensions;
+namespace MicroRabbit.Transfer.Api.Extensions;
 
 public static class Extensions
 {
     public static void RegisterServices(this IHostApplicationBuilder builder)
     {
-        BankingDependencyContainer.RegisterBankingServices(builder.Services);
+        TransferDependencyContainer.RegisterTransferServices(builder.Services);
     }
 }
